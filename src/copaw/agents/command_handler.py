@@ -4,11 +4,13 @@
 This module handles system commands like /compact, /new, /clear, etc.
 """
 import logging
+import shlex
 from typing import TYPE_CHECKING
 
 from agentscope.agent._react_agent import _MemoryMark
 from agentscope.message import Msg, TextBlock
 
+from .tools.shell import execute_shell_command
 from copaw.config import load_config
 
 if TYPE_CHECKING:
@@ -35,6 +37,7 @@ class ConversationCommandHandlerMixin:
             "compact_str",
             "await_summary",
             "message",
+            "exec_bash"
         },
     )
 
@@ -49,6 +52,7 @@ class ConversationCommandHandlerMixin:
         """
         if not isinstance(query, str) or not query.startswith("/"):
             return False
+        query = query.split()[0]
         return query.strip().lstrip("/") in self.SYSTEM_COMMANDS
 
 
@@ -284,6 +288,47 @@ class CommandHandler(ConversationCommandHandlerMixin):
             f"- **Role:** {msg.role}\n"
             f"- **Content:**\n{msg.content}",
         )
+
+    async def _process_exec_bash(
+        self,
+        _messages: list[Msg],
+        args: str = "",
+    ) -> Msg:
+        """Process /exec_bash command via an explicit bash shell."""
+        command = args.strip()
+        if not command:
+            return await self._make_system_msg(
+                "**Usage: /exec_bash <command>**\n\n"
+                "- Example: /exec_bash pwd\n"
+                "- Example: /exec_bash ls -la",
+            )
+
+        bash_command = f"bash -lc {shlex.quote(command)}"
+
+        try:
+            response = await execute_shell_command(command=bash_command)
+        except Exception as exc:  # pragma: no cover
+            logger.exception("Failed to execute /exec_bash command")
+            return await self._make_system_msg(
+                f"**Bash Command Failed**\n\n"
+                f"- **Command:** `{command}`\n"
+                f"- **Error:** {exc}",
+            )
+
+        result_parts = []
+        for block in getattr(response, "content", []) or []:
+            if block.get("type") == "text":
+                result_parts.append(block.get("text", ""))
+        result_text = "\n".join(part for part in result_parts if part).strip()
+        if not result_text:
+            result_text = "Command executed successfully (no output)."
+
+        return await self._make_system_msg(
+            f"**Bash Command Complete**\n\n"
+            f"- **Command:** `{command}`\n"
+            f"- **Result:**\n{result_text}",
+        )
+
 
     async def handle_conversation_command(self, query: str) -> Msg:
         """Process conversation system commands.
