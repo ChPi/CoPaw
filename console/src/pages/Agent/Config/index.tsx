@@ -1,16 +1,22 @@
 import { useState } from "react";
-import { Button, Form } from "@agentscope-ai/design";
+import { Button, Form, Tabs } from "@agentscope-ai/design";
 import { useTranslation } from "react-i18next";
 import { useAgentConfig } from "./useAgentConfig.tsx";
 import {
-  PageHeader,
   ReactAgentCard,
-  ContextManagementCard,
+  LlmRetryCard,
+  LlmRateLimiterCard,
+  ContextCompactCard,
+  ToolResultCompactCard,
+  MemorySummaryCard,
+  EmbeddingConfigCard,
 } from "./components";
+import { PageHeader } from "@/components/PageHeader";
 import styles from "./index.module.less";
 
 function AgentConfigPage() {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState("reactAgent");
   const {
     form,
     loading,
@@ -26,29 +32,8 @@ function AgentConfigPage() {
     handleTimezoneChange,
   } = useAgentConfig();
 
-  // Force re-render when form values change to refresh derived threshold values
-  const [, forceUpdate] = useState({});
-  const handleValuesChange = () => forceUpdate({});
-
-  const getCalculatedValues = () => {
-    const values = form.getFieldsValue([
-      "max_input_length",
-      "memory_compact_ratio",
-      "memory_reserve_ratio",
-    ]);
-    const maxInputLength = values.max_input_length ?? 0;
-    const memoryCompactRatio = values.memory_compact_ratio ?? 0;
-    const memoryReserveRatio = values.memory_reserve_ratio ?? 0;
-    return {
-      contextCompactThreshold: Math.floor(maxInputLength * memoryCompactRatio),
-      contextCompactReserveThreshold: Math.floor(
-        maxInputLength * memoryReserveRatio,
-      ),
-    };
-  };
-
-  const { contextCompactThreshold, contextCompactReserveThreshold } =
-    getCalculatedValues();
+  const llmRetryEnabled = Form.useWatch("llm_retry_enabled", form) ?? true;
+  const maxInputLength = Form.useWatch("max_input_length", form) ?? 0;
 
   if (loading) {
     return (
@@ -75,28 +60,117 @@ function AgentConfigPage() {
 
   return (
     <div className={styles.configPage}>
-      <PageHeader />
+      <PageHeader parent={t("nav.agent")} current={t("agentConfig.title")} />
 
-      <Form
-        form={form}
-        layout="vertical"
-        className={styles.form}
-        onValuesChange={handleValuesChange}
-      >
-        <ReactAgentCard
-          language={language}
-          savingLang={savingLang}
-          onLanguageChange={handleLanguageChange}
-          timezone={timezone}
-          savingTimezone={savingTimezone}
-          onTimezoneChange={handleTimezoneChange}
-        />
-
-        <ContextManagementCard
-          contextCompactThreshold={contextCompactThreshold}
-          contextCompactReserveThreshold={contextCompactReserveThreshold}
-        />
-      </Form>
+      <div className={styles.content}>
+        <Form form={form} layout="vertical" className={styles.form}>
+          <Tabs
+            className={styles.mainTabs}
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: "reactAgent",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.reactAgentTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <ReactAgentCard
+                      language={language}
+                      savingLang={savingLang}
+                      onLanguageChange={handleLanguageChange}
+                      timezone={timezone}
+                      savingTimezone={savingTimezone}
+                      onTimezoneChange={handleTimezoneChange}
+                    />
+                  </div>
+                ),
+              },
+              {
+                key: "llmRetry",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.llmRetryTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <LlmRetryCard llmRetryEnabled={llmRetryEnabled} />
+                  </div>
+                ),
+              },
+              {
+                key: "llmRateLimiter",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.llmRateLimiterTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <LlmRateLimiterCard />
+                  </div>
+                ),
+              },
+              {
+                key: "contextCompact",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.contextCompactTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <ContextCompactCard maxInputLength={maxInputLength} />
+                  </div>
+                ),
+              },
+              {
+                key: "toolResultCompact",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.toolResultCompactTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <ToolResultCompactCard />
+                  </div>
+                ),
+              },
+              {
+                key: "memorySummary",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.memorySummaryTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <MemorySummaryCard />
+                  </div>
+                ),
+              },
+              {
+                key: "embeddingConfig",
+                label: (
+                  <span className={styles.tabLabel}>
+                    {t("agentConfig.embeddingConfigTitle")}
+                  </span>
+                ),
+                children: (
+                  <div className={styles.tabContent}>
+                    <EmbeddingConfigCard />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </Form>
+      </div>
 
       <div className={styles.footerActions}>
         <Button
