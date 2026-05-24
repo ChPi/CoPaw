@@ -2,8 +2,10 @@ import { Button, Drawer, Form, Input, Select } from "@agentscope-ai/design";
 import { useTranslation } from "react-i18next";
 import type { PoolSkillSpec } from "../../../../api/types";
 import {
+  deriveInstalledFromLabel,
   getPoolBuiltinStatusLabel,
   getPoolBuiltinStatusTone,
+  isSkillBuiltin,
 } from "@/utils/skill";
 import { MAX_TAGS, MAX_TAG_LENGTH } from "../../../Agent/Skills/components";
 import { MarkdownCopy } from "../../../../components/MarkdownCopy/MarkdownCopy";
@@ -25,6 +27,7 @@ interface PoolSkillDrawerProps {
   onContentChange: (content: string) => void;
   onShowMarkdownChange: (value: boolean) => void;
   onConfigTextChange: (text: string) => void;
+  onChangeBuiltinLanguage?: (skill: PoolSkillSpec, language: string) => void;
   validateFrontmatter: (_: unknown, value: string) => Promise<void>;
 }
 
@@ -41,6 +44,7 @@ export function PoolSkillDrawer({
   onContentChange,
   onShowMarkdownChange,
   onConfigTextChange,
+  onChangeBuiltinLanguage,
   validateFrontmatter,
 }: PoolSkillDrawerProps) {
   const { t } = useTranslation();
@@ -76,6 +80,41 @@ export function PoolSkillDrawer({
               }`}
             >
               {getPoolBuiltinStatusLabel(activeSkill.sync_status, t)}
+            </div>
+          </div>
+          {isSkillBuiltin(activeSkill.source) &&
+            (activeSkill.available_builtin_languages?.length ?? 0) > 1 &&
+            onChangeBuiltinLanguage && (
+              <div className={styles.infoSection}>
+                <div className={styles.infoLabel}>
+                  {t("skillPool.builtinLanguage")}
+                </div>
+                <div className={styles.languageToggle}>
+                  {activeSkill.available_builtin_languages?.map((lang) => (
+                    <Button
+                      key={lang}
+                      size="small"
+                      type={
+                        activeSkill.builtin_language === lang
+                          ? "primary"
+                          : "default"
+                      }
+                      onClick={() =>
+                        void onChangeBuiltinLanguage(activeSkill, lang)
+                      }
+                    >
+                      {lang === "zh" ? "中文" : "English"}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          <div className={styles.infoSection}>
+            <div className={styles.infoLabel}>
+              {t("skillPool.installedFrom")}
+            </div>
+            <div className={styles.infoBlock}>
+              {deriveInstalledFromLabel(activeSkill.installed_from)}
             </div>
           </div>
         </div>
